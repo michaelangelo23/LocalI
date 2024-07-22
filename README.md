@@ -36,7 +36,7 @@ assist you with it and explain the content is what made me invested in it.
 - Python 3.7+
 - [Ollama](https://ollama.ai)
 
-## 🧩 Architecture
+## ✨ Architecture
 
 LocalAI Assistant is designed with modularity in mind:
 
@@ -45,14 +45,6 @@ LocalAI Assistant is designed with modularity in mind:
 - **File Processor**: Handles document ingestion and analysis
 - **Knowledge Base**: Stores and retrieves information from processed documents
 - **Response Generator**: Produces AI responses based on user input and available knowledge
-
-## 🛣️ Roadmap
-
-- [ ] Implement a graphical user interface (GUI)
-- [ ] Expand support for additional file formats
-- [ ] Integrate more language models
-- [ ] Enhance context management for improved conversation coherence
-- [ ] Add fine-tuning capabilities
 
 
 ## 🙏 Acknowledgements
