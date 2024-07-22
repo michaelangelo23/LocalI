@@ -5,7 +5,7 @@
 
 > Installation & usage docs: [Link to your documentation]
 
-![CLI Screenshot](path_to_your_screenshot.png)
+![CLI Screenshot](CLI.png)
 
 LocalAI Assistant is a powerful, privacy-focused AI project that enables you to interact with your documents using the capabilities of Large Language Models (LLMs), even in offline scenarios. 100% private, ensuring your data never leaves your local environment.
 
