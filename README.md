@@ -1,7 +1,7 @@
 # 🤖 LocalAI Assistant (still in development) 🧠
 
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
-[![Ollama ](https://img.shields.io/badge/ollama-0.2.7-blue.svg)](https://github.com/ollama/ollama/releases/tag/v0.2.7)
+[![Ollama ](https://img.shields.io/badge/ollama-0.2.7-white.svg)](https://github.com/ollama/ollama/releases/tag/v0.2.7)
 
 > Installation & usage docs: [still an ongoing development]
 
