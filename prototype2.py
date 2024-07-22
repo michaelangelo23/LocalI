@@ -11,6 +11,8 @@ import docx
 import pickle
 from datetime import datetime
 import concurrent.futures
+import threading
+import queue
 
 global_context = ""
 file_inspection_mode = False
@@ -18,38 +20,35 @@ uploaded_files_context = ""
 
 
 def generate_text(prompt, model_name="llama3"):
-    global global_context, file_inspection_mode, uploaded_files_context
     url = "http://localhost:11434/api/generate"
+    system_context = uploaded_files_context if file_inspection_mode else global_context
 
-    if file_inspection_mode:
-        if not uploaded_files_context:
-            return "No files have been uploaded yet. Please use the '/scan' command to add files to the knowledge base."
-        system_context = uploaded_files_context
-    else:
-        system_context = global_context
+    if file_inspection_mode and not uploaded_files_context:
+        return "No files have been uploaded yet. Please use the '/scan' command to add files to the knowledge base."
 
     data = {
         "model": model_name,
         "prompt": prompt,
         "system": system_context
     }
+
     try:
-        model_response = requests.post(url, json=data, stream=True)
-        model_response.raise_for_status()
-        return model_response
+        response = requests.post(url, json=data, stream=True)
+        response.raise_for_status()
+        return response
     except requests.RequestException as e:
         return f"Error: {e}"
 
 
-def process_stream(model_response):
+def process_stream(model_response, output_queue):
     result = ""
     buffer = ""
     last_print_time = time.time()
+
     for line in model_response.iter_lines():
         if line:
             try:
-                decoded_line = line.decode('utf-8')
-                response_data = json.loads(decoded_line)
+                response_data = json.loads(line.decode('utf-8'))
                 if 'response' in response_data:
                     chunk = response_data['response']
                     result += chunk
@@ -57,21 +56,30 @@ def process_stream(model_response):
                     current_time = time.time()
                     if current_time - last_print_time > 0.05 or len(buffer) > 10:
                         print_chunk = buffer[:random.randint(1, len(buffer))]
-                        sys.stdout.write(print_chunk)
-                        sys.stdout.flush()
+                        output_queue.put(print_chunk)
                         buffer = buffer[len(print_chunk):]
                         last_print_time = current_time
                         time.sleep(0.01)
             except json.JSONDecodeError:
-                print(f"Error decoding JSON: {decoded_line}")
+                print(f"Error decoding JSON: {line.decode('utf-8')}")
+
     if buffer:
-        sys.stdout.write(buffer)
-        sys.stdout.flush()
-    print()
+        output_queue.put(buffer)
+    output_queue.put(None)  # Signal that processing is complete
     return result
 
 
-def input_thread(prompt):
+def output_handler(output_queue):
+    while True:
+        chunk = output_queue.get()
+        if chunk is None:
+            break
+        sys.stdout.write(chunk)
+        sys.stdout.flush()
+    print()
+
+
+def get_user_input(prompt):
     try:
         return input(prompt)
     except (EOFError, KeyboardInterrupt):
@@ -139,10 +147,12 @@ def create_file_summary(file_path, content):
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
     creation_time = datetime.fromtimestamp(os.path.getctime(file_path))
-
     summary_prompt = f"Summarize the following content in 2-3 sentences:\n\n{content[:1000]}..."
     summary_response = generate_text(summary_prompt)
-    summary = process_stream(summary_response) if not isinstance(summary_response, str) else summary_response
+
+    output_queue = queue.Queue()
+    summary = process_stream(summary_response, output_queue) if not isinstance(summary_response,
+                                                                               str) else summary_response
 
     return f"File: {file_name}\nType: {file_type}\nCreated: {creation_time}\nSummary: {summary}\n\n{content}\n\n"
 
@@ -150,14 +160,12 @@ def create_file_summary(file_path, content):
 def create_knowledge_base(files):
     global uploaded_files_context
     new_knowledge = ""
-
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_file = {executor.submit(read_file_content, file): file for file in files}
         for future in concurrent.futures.as_completed(future_to_file):
             file = future_to_file[future]
             content = future.result()
             new_knowledge += create_file_summary(file, content)
-
     uploaded_files_context = (
         f"You are an AI assistant with knowledge of the following files:\n\n"
         f"{new_knowledge}\n\nUse this information to assist with answering questions."
@@ -180,24 +188,18 @@ def remove_files_from_knowledge_base():
     global uploaded_files_context
     files = uploaded_files_context.split("File: ")
     files = [f.strip() for f in files if f.strip()]
-
     if not files:
         print("No files in the knowledge base.")
         return False
-
     root = tk.Tk()
     root.withdraw()
-
     file_list = tk.Toplevel(root)
     file_list.title("Select files to remove")
     file_list.geometry("400x300")
-
     listbox = tk.Listbox(file_list, selectmode=tk.MULTIPLE)
     listbox.pack(expand=True, fill=tk.BOTH)
-
     for file in files:
         listbox.insert(tk.END, file.split("\n")[0])
-
     files_removed = False
 
     def remove_selected():
@@ -206,12 +208,10 @@ def remove_files_from_knowledge_base():
         if not selected_indices:
             messagebox.showwarning("No Selection", "Please select files to remove.")
             return
-
         new_knowledge_content = ""
         for i, uploaded_file in enumerate(files):
             if i not in selected_indices:
                 new_knowledge_content += f"File: {uploaded_file}"
-
         uploaded_files_context = (
             f"You are an AI assistant with knowledge of the following files:\n\n"
             f"{new_knowledge_content}\n\nUse this information to assist with answering questions."
@@ -224,7 +224,6 @@ def remove_files_from_knowledge_base():
 
     remove_button = tk.Button(file_list, text="Remove Selected", command=remove_selected)
     remove_button.pack()
-
     root.mainloop()
     return files_removed
 
@@ -244,14 +243,14 @@ fileinspect_off - Exit file inspection mode
 
 def main():
     global file_inspection_mode, uploaded_files_context
-    print("Type your prompts and press Enter to send them. Type '/help' for available commands.")
+    print("Type your prompts and press Enter to send them.")
+    print("Type '/help' for available commands.")
 
-    current_model = "llama3"
-    current_model = prepare_context(current_model)
+    current_model = prepare_context("llama3")
 
     try:
         while True:
-            user_prompt = input_thread("\nEnter your prompt: ")
+            user_prompt = get_user_input("\nEnter your prompt: ")
 
             if user_prompt.lower() == "/bye":
                 print("Goodbye!")
@@ -297,12 +296,16 @@ def main():
             if isinstance(response, str):
                 print(response)
             else:
-                process_stream(response)
-
+                output_queue = queue.Queue()
+                output_thread = threading.Thread(target=output_handler, args=(output_queue,))
+                output_thread.start()
+                process_thread = threading.Thread(target=process_stream, args=(response, output_queue))
+                process_thread.start()
+                output_thread.join()
+                process_thread.join()
     except Exception as e:
         print(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":
     main()
-
