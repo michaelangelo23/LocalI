@@ -13,13 +13,25 @@ from datetime import datetime
 import concurrent.futures
 
 global_context = ""
+file_inspection_mode = False
+uploaded_files_context = ""
+
 
 def generate_text(prompt, model_name="llama3"):
+    global global_context, file_inspection_mode, uploaded_files_context
     url = "http://localhost:11434/api/generate"
+
+    if file_inspection_mode:
+        if not uploaded_files_context:
+            return "No files have been uploaded yet. Please use the '/scan' command to add files to the knowledge base."
+        system_context = uploaded_files_context
+    else:
+        system_context = global_context
+
     data = {
         "model": model_name,
         "prompt": prompt,
-        "system": global_context
+        "system": system_context
     }
     try:
         model_response = requests.post(url, json=data, stream=True)
@@ -27,6 +39,7 @@ def generate_text(prompt, model_name="llama3"):
         return model_response
     except requests.RequestException as e:
         return f"Error: {e}"
+
 
 def process_stream(model_response):
     result = ""
@@ -57,11 +70,13 @@ def process_stream(model_response):
     print()
     return result
 
+
 def input_thread(prompt):
     try:
         return input(prompt)
     except (EOFError, KeyboardInterrupt):
         return "/bye"
+
 
 def select_files():
     root = tk.Tk()
@@ -82,6 +97,7 @@ def select_files():
         filetypes=file_types
     )
     return list(files) if files else None
+
 
 def read_file_content(file_path):
     file_extension = os.path.splitext(file_path)[1].lower()
@@ -105,9 +121,11 @@ def read_file_content(file_path):
     except Exception as e:
         return f"Unable to read file {file_path}: {str(e)}"
 
+
 def save_knowledge_base(knowledge_content):
     with open('knowledge_base.pkl', 'wb') as f:
         pickle.dump(knowledge_content, f)
+
 
 def load_knowledge_base():
     try:
@@ -115,6 +133,7 @@ def load_knowledge_base():
             return pickle.load(f)
     except FileNotFoundError:
         return ""
+
 
 def create_file_summary(file_path, content):
     file_name = os.path.basename(file_path)
@@ -127,8 +146,9 @@ def create_file_summary(file_path, content):
 
     return f"File: {file_name}\nType: {file_type}\nCreated: {creation_time}\nSummary: {summary}\n\n{content}\n\n"
 
+
 def create_knowledge_base(files):
-    existing_knowledge = load_knowledge_base()
+    global uploaded_files_context
     new_knowledge = ""
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -138,23 +158,28 @@ def create_knowledge_base(files):
             content = future.result()
             new_knowledge += create_file_summary(file, content)
 
-    updated_knowledge = existing_knowledge + new_knowledge
-    save_knowledge_base(updated_knowledge)
-    return updated_knowledge
+    uploaded_files_context = (
+        f"You are an AI assistant with knowledge of the following files:\n\n"
+        f"{new_knowledge}\n\nUse this information to assist with answering questions."
+    )
+    save_knowledge_base(uploaded_files_context)
+    return uploaded_files_context
+
 
 def prepare_context(model_name):
     global global_context
     knowledge_content = load_knowledge_base()
     global_context = (
-        f"You are an AI assistant with knowledge of the following files:\n\n"
+        f"You are an AI assistant with access to your pretrained knowledge and the following additional files:\n\n"
         f"{knowledge_content}\n\nUse this information to assist with answering questions."
     )
     print(f"Knowledge base loaded. Using model: {model_name} with added context.")
     return model_name
 
+
 def remove_files_from_knowledge_base():
-    knowledge_content = load_knowledge_base()
-    files = knowledge_content.split("File: ")
+    global uploaded_files_context
+    files = uploaded_files_context.split("File: ")
     files = [f.strip() for f in files if f.strip()]
 
     if not files:
@@ -188,7 +213,11 @@ def remove_files_from_knowledge_base():
             if i not in selected_indices:
                 new_knowledge_content += f"File: {uploaded_file}"
 
-        save_knowledge_base(new_knowledge_content)
+        uploaded_files_context = (
+            f"You are an AI assistant with knowledge of the following files:\n\n"
+            f"{new_knowledge_content}\n\nUse this information to assist with answering questions."
+        )
+        save_knowledge_base(uploaded_files_context)
         print(f"Removed {len(selected_indices)} file(s) from the knowledge base.")
         files_removed = True
         file_list.destroy()
@@ -200,11 +229,13 @@ def remove_files_from_knowledge_base():
     root.mainloop()
     return files_removed
 
+
 def main():
+    global file_inspection_mode, uploaded_files_context
     print("Type your prompts and press Enter to send them.")
     print("To exit, press Ctrl+C, Ctrl+D, or type '/bye'.")
-    print("To select files and add to the knowledge base, type '/scan'.")
-    print("To remove files from the knowledge base, type '/remove'.")
+    print("To enter file inspection mode, type 'fileinspect_on'.")
+    print("To exit file inspection mode, type 'fileinspect_off'.")
 
     current_model = "llama3"
     current_model = prepare_context(current_model)
@@ -216,19 +247,36 @@ def main():
             if user_prompt.lower() == "/bye":
                 print("Goodbye!")
                 break
+            elif user_prompt.lower() == "fileinspect_on":
+                file_inspection_mode = True
+                print("File inspection mode activated. The model will only access uploaded files.")
+                print("You can now use '/scan' to add files and '/remove' to remove files.")
+                continue
+            elif user_prompt.lower() == "fileinspect_off":
+                file_inspection_mode = False
+                uploaded_files_context = ""
+                save_knowledge_base("")
+                print("File inspection mode deactivated. The model can now access its pretrained data.")
+                print("All uploaded files have been removed from the knowledge base.")
+                continue
             elif user_prompt.lower() == "/scan":
+                if not file_inspection_mode:
+                    print("Error: '/scan' can only be used in file inspection mode. Type 'fileinspect_on' to activate.")
+                    continue
                 selected_files = select_files()
                 if selected_files:
                     print(f"Selected {len(selected_files)} file(s).")
                     create_knowledge_base(selected_files)
-                    current_model = prepare_context(current_model)
+                    print("Files added to the knowledge base.")
                 else:
                     print("No files selected.")
                 continue
             elif user_prompt.lower() == "/remove":
-                files_removed = remove_files_from_knowledge_base()
-                if files_removed:
-                    current_model = prepare_context(current_model)
+                if not file_inspection_mode:
+                    print(
+                        "Error: '/remove' can only be used in file inspection mode. Type 'fileinspect_on' to activate.")
+                    continue
+                remove_files_from_knowledge_base()
                 continue
 
             print()
@@ -241,6 +289,7 @@ def main():
 
     except Exception as e:
         print(f"An error occurred: {e}")
+
 
 if __name__ == "__main__":
     main()
