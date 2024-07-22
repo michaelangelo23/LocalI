@@ -173,7 +173,6 @@ def prepare_context(model_name):
         f"You are an AI assistant with access to your pretrained knowledge and the following additional files:\n\n"
         f"{knowledge_content}\n\nUse this information to assist with answering questions."
     )
-    print(f"Knowledge base loaded. Using model: {model_name} with added context.")
     return model_name
 
 
@@ -230,12 +229,22 @@ def remove_files_from_knowledge_base():
     return files_removed
 
 
+def display_help():
+    help_message = """
+Available commands:
+/bye - Exit the program
+/help - Display this help message
+fileinspect_on - Enter file inspection mode
+fileinspect_off - Exit file inspection mode
+/scan - Add files to the knowledge base (only in file inspection mode)
+/remove - Remove files from the knowledge base (only in file inspection mode)
+"""
+    print(help_message)
+
+
 def main():
     global file_inspection_mode, uploaded_files_context
-    print("Type your prompts and press Enter to send them.")
-    print("To exit, press Ctrl+C, Ctrl+D, or type '/bye'.")
-    print("To enter file inspection mode, type 'fileinspect_on'.")
-    print("To exit file inspection mode, type 'fileinspect_off'.")
+    print("Type your prompts and press Enter to send them. Type '/help' for available commands.")
 
     current_model = "llama3"
     current_model = prepare_context(current_model)
@@ -247,6 +256,9 @@ def main():
             if user_prompt.lower() == "/bye":
                 print("Goodbye!")
                 break
+            elif user_prompt.lower() == "/help":
+                display_help()
+                continue
             elif user_prompt.lower() == "fileinspect_on":
                 file_inspection_mode = True
                 print("File inspection mode activated. The model will only access uploaded files.")
@@ -293,3 +305,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
