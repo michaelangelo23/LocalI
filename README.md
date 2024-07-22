@@ -11,6 +11,11 @@ LocalAI Assistant is a powerful, privacy-focused AI project that enables you to 
 
 The project provides a robust CLI interface offering all the primitives needed to build private, context-aware AI applications. It leverages the Llama 3 model via Ollama and supports both normal and streaming responses.
 
+### Motivation/Reference
+
+I was captivated by the Nvidia's tech called Chat with RTX where you can download it and run the AI chatbot locally where it can access your fikes, but it's so large and obviously i don't have an RTX gpu as well, and the feature where it can access your files and can
+assist you with it and explain the content is what made me invested in it. 
+
 ## 🎥 Overview
 
 ### Key Features
