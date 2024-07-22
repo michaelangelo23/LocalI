@@ -212,11 +212,11 @@ def remove_files_from_knowledge_base():
         for i, uploaded_file in enumerate(files):
             if i not in selected_indices:
                 new_knowledge_content += f"File: {uploaded_file}"
-        uploaded_files_context = (
+        uploaded_files = (
             f"You are an AI assistant with knowledge of the following files:\n\n"
             f"{new_knowledge_content}\n\nUse this information to assist with answering questions."
         )
-        save_knowledge_base(uploaded_files_context)
+        save_knowledge_base(uploaded_files)
         print(f"Removed {len(selected_indices)} file(s) from the knowledge base.")
         files_removed = True
         file_list.destroy()
