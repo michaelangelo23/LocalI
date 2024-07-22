@@ -13,8 +13,7 @@ The project provides a robust CLI interface offering all the primitives needed t
 
 ### Motivation/Reference
 
-I was captivated by the Nvidia's tech called Chat with RTX where you can download it and run the AI chatbot locally where it can access your fikes, but it's so large and obviously i don't have an RTX gpu as well, and the feature where it can access your files and can
-assist you with it and explain the content is what made me invested in it. 
+I was captivated by the Nvidia's tech called Chat with RTX where you can download it and run the AI chatbot locally where it can access your files, but it's so large and obviously i don't have an RTX gpu as well, and the feature where it can access your files, can assist you with it and explain the content is what made me invested in it. 
 
 ## 🎥 Overview
 
