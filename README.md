@@ -7,7 +7,7 @@
 
 ![CLI Screenshot](pictures/CLI.png)
 
-LocalAI Assistant is a powerful, privacy-focused AI project that enables you to interact with your documents using the capabilities of Large Language Models (LLMs), even in offline scenarios. 100% private, ensuring your data never leaves your local environment.
+LocalAI Assistant is a powerful, privacy-focused AI project that enables you to interact with your documents using the capabilities of Large Language Models (LLMs), even in offline scenarios,ensuring your data never leaves your local environment.
 
 The project provides a robust CLI interface offering all the primitives needed to build private, context-aware AI applications. It leverages the Llama 3 model via Ollama and supports both normal and streaming responses.
 
@@ -26,14 +26,6 @@ I was captivated by the Nvidia's tech called Chat with RTX where you can downloa
 - 🧠 **Llama 3 Integration**: Utilizes the advanced Llama 3 model via Ollama
 - ⚡ **Concurrent Processing**: Improved performance through parallel file processing
 - 🔄 **Real-time Responses**: Stream AI responses as they're generated
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Ubuntu 20.04 or later
-- Python 3.7+
-- [Ollama](https://ollama.ai)
 
 ## ✨ Architecture
 
