@@ -7,7 +7,6 @@ import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import PyPDF2
-import docx
 import pickle
 from datetime import datetime
 import concurrent.futures
@@ -55,9 +54,10 @@ def process_stream(model_response, output_queue):
                     buffer += chunk
                     current_time = time.time()
                     if current_time - last_print_time > 0.05 or len(buffer) > 10:
-                        print_chunk = buffer[:random.randint(1, len(buffer))]
+                        chunk_size = min(len(buffer), max(1, random.randint(1, len(buffer))))
+                        print_chunk = buffer[:chunk_size]
                         output_queue.put(print_chunk)
-                        buffer = buffer[len(print_chunk):]
+                        buffer = buffer[chunk_size:]
                         last_print_time = current_time
                         time.sleep(0.01)
             except json.JSONDecodeError:
@@ -65,7 +65,7 @@ def process_stream(model_response, output_queue):
 
     if buffer:
         output_queue.put(buffer)
-    output_queue.put(None)  # Signal that processing is complete
+    output_queue.put(None)
     return result
 
 
@@ -90,15 +90,9 @@ def select_files():
     root = tk.Tk()
     root.withdraw()
     file_types = [
+        ("All files", "*.*"),
         ("Text files", "*.txt"),
         ("PDF files", "*.pdf"),
-        ("Word documents", "*.docx"),
-        ("Markdown files", "*.md"),
-        ("Python files", "*.py"),
-        ("JavaScript files", "*.js"),
-        ("HTML files", "*.html"),
-        ("CSS files", "*.css"),
-        ("All files", "*.*")
     ]
     files = filedialog.askopenfilenames(
         title="Select files for knowledge base",
@@ -110,7 +104,7 @@ def select_files():
 def read_file_content(file_path):
     file_extension = os.path.splitext(file_path)[1].lower()
     try:
-        if file_extension in ['.txt', '.md', '.py', '.js', '.html', '.css']:
+        if file_extension in ['.txt']:
             with open(file_path, 'r', encoding='utf-8') as file:
                 return file.read()
         elif file_extension == '.pdf':
@@ -120,9 +114,6 @@ def read_file_content(file_path):
                 for page in pdf_reader.pages:
                     content += page.extract_text() + "\n"
             return content
-        elif file_extension == '.docx':
-            doc = docx.Document(file_path)
-            return "\n".join([paragraph.text for paragraph in doc.paragraphs])
         else:
             with open(file_path, 'r', encoding='utf-8') as file:
                 return file.read()
@@ -176,10 +167,9 @@ def create_knowledge_base(files):
 
 def prepare_context(model_name):
     global global_context
-    knowledge_content = load_knowledge_base()
     global_context = (
-        f"You are an AI assistant with access to your pretrained knowledge and the following additional files:\n\n"
-        f"{knowledge_content}\n\nUse this information to assist with answering questions."
+        f"You are an AI assistant with access to the pretrained knowledge. "
+        f"Use this information to assist with answering questions."
     )
     return model_name
 
@@ -195,7 +185,7 @@ def remove_files_from_knowledge_base():
     root.withdraw()
     file_list = tk.Toplevel(root)
     file_list.title("Select files to remove")
-    file_list.geometry("400x300")
+    file_list.geometry("400x800")
     listbox = tk.Listbox(file_list, selectmode=tk.MULTIPLE)
     listbox.pack(expand=True, fill=tk.BOTH)
     for file in files:
@@ -212,11 +202,11 @@ def remove_files_from_knowledge_base():
         for i, uploaded_file in enumerate(files):
             if i not in selected_indices:
                 new_knowledge_content += f"File: {uploaded_file}"
-        uploaded_files = (
+        file_context_uploaded = (
             f"You are an AI assistant with knowledge of the following files:\n\n"
-            f"{new_knowledge_content}\n\nUse this information to assist with answering questions."
+            f"{new_knowledge_content}\n\nUse the information as is with answering questions."
         )
-        save_knowledge_base(uploaded_files)
+        save_knowledge_base(file_context_uploaded)
         print(f"Removed {len(selected_indices)} file(s) from the knowledge base.")
         files_removed = True
         file_list.destroy()
@@ -241,11 +231,17 @@ fileinspect_off - Exit file inspection mode
     print(help_message)
 
 
+def reset_knowledge_base():
+    global uploaded_files_context
+    uploaded_files_context = ""
+    save_knowledge_base("")
+    print("Knowledge base has been reset.")
+
+
 def main():
     global file_inspection_mode, uploaded_files_context
+    reset_knowledge_base()
     print("Type your prompts and press Enter to send them.")
-    print("Type '/help' for available commands.")
-
     current_model = prepare_context("llama3")
 
     try:
@@ -265,8 +261,7 @@ def main():
                 continue
             elif user_prompt.lower() == "fileinspect_off":
                 file_inspection_mode = False
-                uploaded_files_context = ""
-                save_knowledge_base("")
+                reset_knowledge_base()
                 print("File inspection mode deactivated. The model can now access its pretrained data.")
                 print("All uploaded files have been removed from the knowledge base.")
                 continue
