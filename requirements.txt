@@ -1,3 +1,6 @@
-requests
-PyPDF2
-python-docx
+aiohttp
+argparse
+asyncio
+logging
+typing
+json
