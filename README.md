@@ -1,3 +1,4 @@
+
 # 🤖 LocalAI Assistant (still in development) 🧠
 
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
@@ -44,5 +45,10 @@ LocalAI Assistant is designed with modularity in mind:
 - [Llama 3](https://llama.meta.com/llama3/) for the underlying language model
 
 ---
+
+
+- Install Python 
+- Install Ollama > Download model (curl -fsSL https://ollama.com/install.sh | sh)
+- 
 
 
