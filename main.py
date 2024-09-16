@@ -7,6 +7,7 @@ from typing import AsyncGenerator, Optional
 
 import aiohttp
 
+#initialization
 DEFAULT_MODEL_NAME = "llama3.1"
 DEFAULT_API_URL = "http://localhost:11434/api/generate"
 
